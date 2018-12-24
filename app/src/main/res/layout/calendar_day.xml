@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/id_itemLayout"
+    style="@style/widget_two_item_layout"
+    android:layout_weight="1" >
+    <TextView
+        android:id="@+id/id_yangli_text"
+        android:text="01"
+        style="@style/day_yangli_text"/>
+    <TextView
+        android:id="@+id/id_yinli_text"
+        android:text="初二"
+        style="@style/day_yinli_text"/>
+</LinearLayout>

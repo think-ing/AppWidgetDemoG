@@ -1,0 +1,5 @@
+<resources>
+    <!--至关重要的；生死攸关的；有活力的-->
+    <string name="app_name">阿布</string>
+    <string name="add_widget">阿布桌面</string>
+</resources>
