@@ -7,6 +7,7 @@ import com.mzw.appwidgetdemog.db.annotaions.DBField;
 import com.mzw.appwidgetdemog.db.annotaions.DBTable;
 
 /**
+ * 天气 使用  放弃了
  * Created by think on 2018/12/9.
  */
 @DBTable("tb_city")

@@ -27,6 +27,8 @@ import com.mzw.appwidgetdemog.activity.SampleActivity;
 import com.mzw.appwidgetdemog.bean.*;
 import com.mzw.appwidgetdemog.tools.*;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static android.app.Notification.PRIORITY_DEFAULT;
@@ -41,7 +43,8 @@ public class CalendarWidget extends AppWidgetProvider {
 
     private List<DateBean> mDateList;
     private Date receive_date;
-
+    private Map<String ,String> map24 = null;
+    private Map<String ,String> map3 = null;
 
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
@@ -63,6 +66,13 @@ public class CalendarWidget extends AppWidgetProvider {
             //今天不是特殊节日则打开提醒
             ConstantParameter.saveBirthdayRemind(context,0);
         }
+        //  获取24节气 和 3伏 3九
+        try {
+            solarTerms(context,new Date());
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
         getData(context,new Date());
         for (int appWidgetId : appWidgetIds) {
             drawWidget(context, appWidgetId);
@@ -151,6 +161,18 @@ public class CalendarWidget extends AppWidgetProvider {
 //            }
             mDate = _receive_date;
         }
+        map24 = ConstantParameter.getMap(context,"map24",new TreeMap<String,String>());
+        map3 = ConstantParameter.getMap(context,"map3",new TreeMap<String,String>());
+
+        if(map3 == null || map3.size() <= 0 || map24 == null || map24.size() <= 0 || !map24.get("A").equals(ConstantParameter.sdf_b.format(mDate))){
+            try {
+                //  获取24节气 和 3伏 3九
+                solarTerms(context,mDate);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+
         getData(context,mDate);
         redrawWidgets(context);
         super.onReceive(context, intent);
@@ -249,8 +271,26 @@ public class CalendarWidget extends AppWidgetProvider {
                 mDayView.setTextViewText(R.id.id_yinli_text, yinli_month);
                 mDayView.setTextColor(R.id.id_yinli_text, context.getResources().getColor(R.color.yinli_month_text));
             }else{
+
+                //优先级  覆盖  日期 < 三伏三九 < 24节气 < 特殊节日
                 mDayView.setTextViewText(R.id.id_yinli_text, yinli_day);
-//                views.setTextColor(yinliId, context.getResources().getColor(R.color.other_month_text));
+
+                String _str = ConstantParameter.sdf_b.format(mDateBean.date);
+                // 三伏  三九
+                if(map3 != null ){
+                    if(!TextUtils.isEmpty(map3.get(_str)) && map3.get(_str).indexOf("天") == -1){
+                        mDayView.setTextViewText(R.id.id_yinli_text, map3.get(_str));
+                        mDayView.setTextColor(R.id.id_yinli_text, context.getResources().getColor(R.color.yinli_month_text));
+                    }
+                }
+
+                //24节气
+                if(map24 != null ){
+                    if(!TextUtils.isEmpty(map24.get(_str))){
+                        mDayView.setTextViewText(R.id.id_yinli_text, map24.get(_str));
+                        mDayView.setTextColor(R.id.id_yinli_text, context.getResources().getColor(R.color.yinli_month_text));
+                    }
+                }
             }
             //特殊节日
             if(!TextUtils.isEmpty(mDateBean.festival)){
@@ -319,6 +359,25 @@ public class CalendarWidget extends AppWidgetProvider {
         mRemoteView.setTextViewText(R.id.id_today_view_a,ConstantParameter.sdf.format(receive_date));
         mRemoteView.setTextViewText(R.id.id_today_view_b,lunar.cyclical() + " " + lunar.animalsYear() + "年 " + lunar.toString());
 
+        if(map24 != null && !TextUtils.isEmpty(map24.get(ConstantParameter.sdf_b.format(receive_date)))){
+            mRemoteView.setViewVisibility(R.id.id_textView_24,View.VISIBLE);
+            mRemoteView.setTextViewText(R.id.id_textView_24,map24.get(ConstantParameter.sdf_b.format(receive_date)));
+        }else{
+            mRemoteView.setViewVisibility(R.id.id_textView_24,View.GONE);
+            mRemoteView.setTextViewText(R.id.id_textView_24,"");
+        }
+        String _temp = map3.get(ConstantParameter.sdf_b.format(receive_date));
+        if(map3 != null && !TextUtils.isEmpty(_temp)){
+            mRemoteView.setViewVisibility(R.id.id_textView_3,View.VISIBLE);
+            if(_temp.indexOf("天") > 0){
+                mRemoteView.setTextViewText(R.id.id_textView_3,_temp);
+            }else{
+                mRemoteView.setTextViewText(R.id.id_textView_3,_temp+" 第1天");
+            }
+        }else{
+            mRemoteView.setViewVisibility(R.id.id_textView_3,View.GONE);
+            mRemoteView.setTextViewText(R.id.id_textView_3,"");
+        }
         appWidgetManager.updateAppWidget(appWidgetId, mRemoteView);
     }
 
@@ -402,5 +461,100 @@ public class CalendarWidget extends AppWidgetProvider {
         notiManager.notify(notifyId, notification);
 
     }
-}
 
+
+    private void solarTerms(Context mContext,Date date) throws ParseException {
+        //没有彻底加载成功时会调用此方法， 默认时间为1970年，我这设置 为的是没有加载完不执行
+        if(date.getTime() < ConstantParameter.sdf_b.parse("1975年01月01日").getTime()){
+            return;
+        }
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+
+        if(map24 == null){
+            map24 = new LinkedHashMap<String,String>();
+        }else{
+            map24.clear();
+        }
+        //第一步  获取24节气 集合   今年和去年   避免在年末时 计算不出 三九
+        map24.putAll(SolarTerms24.solarTermToMap(calendar.get(Calendar.YEAR) - 1));//去年
+        map24.putAll(SolarTerms24.solarTermToMap(calendar.get(Calendar.YEAR)));//今年
+
+
+        int i = 0;
+        boolean b = true;
+
+        for (String key:map24.keySet()) {
+            /*
+            第二步  获取三伏 集合
+                初伏 从夏至那天 开始 循环找到第三个庚日
+                中伏 从夏至那天 开始 循环找到第四个庚日
+                末伏 从立秋那天 开始 循环找到第一个庚日
+            */
+            if("夏至".equals(map24.get(key))){
+                String xiaZhi = key;
+                Date xiaZhiDate = ConstantParameter.sdf_b.parse(xiaZhi);
+                calendar.setTime(xiaZhiDate);
+                b = true;
+                i = 0;
+                do{
+                    GanZhiJIRi ganZhi = new GanZhiJIRi(calendar);
+                    if(ganZhi.toString().startsWith("庚")){
+                        i += 1;
+                        if(i == 3){
+                            map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"初伏");
+                        }
+                        if(i == 4){
+                            map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"中伏");
+                            b = false;
+                        }
+                    }
+                    calendar.add(Calendar.DATE, 1);
+                }while (b);
+
+            }
+            if("立秋".equals(map24.get(key))) {
+                String liQiu = key;
+                Date liQiuDate  = ConstantParameter.sdf_b.parse(liQiu);
+                calendar.setTime(liQiuDate);
+                b = true;
+                do{
+                    GanZhiJIRi ganZhi = new GanZhiJIRi(calendar);
+                    if(ganZhi.toString().startsWith("庚")){
+                        map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"末伏");
+                        b = false;
+                    }
+                    calendar.add(Calendar.DATE, 1);
+                }while (b);
+            }
+
+            /*
+            第三步  获取三九 集合
+                从冬至那天 开始 循环  冬至为 一九   每9天加一九 （如 冬至后第十天是二九，第十八天是三九 ... 一直到九九）
+                一九二九不出手，三九四九冰上走，五九六九沿河看柳，七九河开，八九雁来，九九归一九，犁牛遍地走。
+             */
+            if("冬至".equals(map24.get(key))) {
+                String dongZhi = key;
+                Date dongZhiDate = ConstantParameter.sdf_b.parse(dongZhi);
+                calendar.setTime(dongZhiDate);
+
+                String sanJiu[] = {"一", "二", "三", "四", "五", "六", "七", "八", "九"};
+                i = 0;
+                String str = "";
+                while (i <= 80){
+                    if(i % 9 == 0){
+                        str = sanJiu[i / 9]+"九";
+                        map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),str);
+                    }else{
+                        map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),str + " 第"+(i%9 + 1)+"天");
+                    }
+                    calendar.add(Calendar.DATE, 1);
+                    i += 1;
+                }
+            }
+        }
+
+        ConstantParameter.saveMap(mContext,"map24",map24);
+        ConstantParameter.saveMap(mContext,"map3",map3);
+    }
+}

@@ -38,7 +38,7 @@ public class Lunar {
 
 //	String[] festivalBirthday;
 
-	final static String chineseNumber[] = {"一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"};
+	final static String chineseNumber[] = {"正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"};
 	static SimpleDateFormat chineseDateFormat = new SimpleDateFormat("yyyy年MM月dd日");
 	//大于2050年  不解析
 	final static long[] lunarInfo = new long[]

@@ -43,9 +43,12 @@ import com.mzw.appwidgetdemog.db.sqlites.BaseDaoFactory;
 import com.mzw.appwidgetdemog.db.sqlites.IBaseDao;
 import com.mzw.appwidgetdemog.tools.ConstantParameter;
 import com.mzw.appwidgetdemog.tools.FileUtils;
+import com.mzw.appwidgetdemog.tools.GanZhiJIRi;
+import com.mzw.appwidgetdemog.tools.Lunar;
 import com.mzw.appwidgetdemog.tools.MD5;
 import com.mzw.appwidgetdemog.tools.MyDatePickerDialog;
 import com.mzw.appwidgetdemog.tools.NotificationsUtils;
+import com.mzw.appwidgetdemog.tools.SolarTerms24;
 import com.qiniu.android.http.ResponseInfo;
 import com.qiniu.android.storage.UpCompletionHandler;
 
@@ -55,14 +58,18 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -523,6 +530,11 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
             case R.id.textView:
                 //查询 特殊节日
+                try {
+                    test();
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
                 getBirthday(1);
                 break;
             case R.id.button:
@@ -549,6 +561,8 @@ public class MainActivity extends Activity implements View.OnClickListener {
                 break;
         }
     }
+
+
 
     private TextWatcher textWatcher = new TextWatcher() {
         @Override
@@ -660,6 +674,91 @@ public class MainActivity extends Activity implements View.OnClickListener {
             e.printStackTrace();
         }
         return result;
+    }
+
+
+
+
+    private void test() throws ParseException {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        Lunar lunar = new Lunar(calendar);
+
+        Log.i("---mzw---"," " + lunar.cyclical());
+
+
+
+
+        //第一步  获取24节气 集合
+        Map<String ,String> map24 =  SolarTerms24.solarTermToMap(calendar.get(Calendar.YEAR));
+        /*
+        第二步  获取三伏 集合
+            初伏 从夏至那天 开始 循环找到第三个庚日
+            中伏 从夏至那天 开始 循环找到第四个庚日
+            末伏 从立秋那天 开始 循环找到第一个庚日
+        */
+        //三伏  三九   集合
+        Map<String ,String> map3 = new HashMap<>();
+        int i = 0;
+        boolean b = true;
+
+        String xiaZhi = map24.get("夏至");
+        Date xiaZhiDate = ConstantParameter.sdf_b.parse(xiaZhi);
+        calendar.setTime(xiaZhiDate);
+        do{
+            GanZhiJIRi ganZhi = new GanZhiJIRi(calendar);
+            if(ganZhi.toString().startsWith("庚")){
+                i += 1;
+                if(i == 3){
+                    map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"初伏");
+                }
+                if(i == 4){
+                    map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"中伏");
+                    b = false;
+                }
+            }
+            calendar.add(Calendar.DATE, 1);
+        }while (b);
+
+        String liQiu = map24.get("立秋");
+        Date liQiuDate = ConstantParameter.sdf_b.parse(liQiu);
+        calendar.setTime(liQiuDate);
+        do{
+            GanZhiJIRi ganZhi = new GanZhiJIRi(calendar);
+            if(ganZhi.toString().startsWith("庚")){
+                map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"末伏");
+                b = false;
+            }
+            calendar.add(Calendar.DATE, 1);
+        }while (b);
+
+
+        /*
+        第三步  获取三九 集合
+            从冬至那天 开始 循环  冬至为 一九   每9天加一九 （如 冬至后第十天是二九，第十八天是三九 ... 一直到九九）
+            一九二九不出手，三九四九冰上走，五九六九沿河看柳，七九河开，八九雁来，九九归一九，犁牛遍地走。
+         */
+        String dongZhi = map24.get("冬至");
+        Date dongZhiDate = ConstantParameter.sdf_b.parse(dongZhi);
+        calendar.setTime(dongZhiDate);
+
+        String sanJiu[] = {"一", "二", "三", "四", "五", "六", "七", "八", "九"};
+        i = 0;
+        while (i <= 80){
+            if(i % 9 == 0){
+                map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),sanJiu[i / 9]+"九");
+                map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"第一天");
+            }else{
+                map3.put(ConstantParameter.sdf_b.format(calendar.getTime()),"第"+sanJiu[i%9]+"天");
+            }
+            calendar.add(Calendar.DATE, 1);
+            i += 1;
+        }
+
+        ConstantParameter.saveMap(mContext,"map24",map24);
+        ConstantParameter.saveMap(mContext,"map3",map3);
+
+
     }
 
 }

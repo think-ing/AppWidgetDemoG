@@ -5,6 +5,9 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -28,7 +31,7 @@ public class ConstantParameter {
 
     public static SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd");
     public static SimpleDateFormat sdf_a = new SimpleDateFormat("yyyy-MM-dd");
-
+    public static SimpleDateFormat sdf_b = new SimpleDateFormat("yyyy年MM月dd日");
     // 做 比较使用  指定时间是否为今天   今月   今年
     public static SimpleDateFormat sdf_toyear = new SimpleDateFormat("yyyy");
     public static SimpleDateFormat sdf_tomonth = new SimpleDateFormat("yyyyMM");
@@ -38,6 +41,8 @@ public class ConstantParameter {
     public static SimpleDateFormat sdf_month = new SimpleDateFormat("MM");
     public static SimpleDateFormat sdf_day = new SimpleDateFormat("dd");
     public static SimpleDateFormat sdf_hhmm = new SimpleDateFormat("HHmm");//做通知 id 用
+
+
 
 
     //桌面挂件点击事件  日
@@ -158,4 +163,31 @@ public class ConstantParameter {
         map.put("mProgress",mSharedPreferences.getInt("mProgress",66));
         return map;
     }
+
+    /*
+    保存 MAP
+        map24 --> 24节气
+        map3 --> 3伏 3九
+     */
+    public static void saveMap(Context mContext,String name, Map<String,String> map) {
+        Gson gson = new Gson();
+        String strJson  = gson.toJson(map);
+        SharedPreferences mSharedPreferences = mContext.getSharedPreferences(name, Context.MODE_PRIVATE);
+        SharedPreferences.Editor edit = mSharedPreferences.edit();
+        edit.putString("map",strJson);
+        edit.commit();
+    }
+    public static Map getMap(Context mContext,String name,Map<String,String> map) {
+        SharedPreferences mSharedPreferences = mContext.getSharedPreferences(name, Context.MODE_PRIVATE);
+
+        String strJson = mSharedPreferences.getString(name,null);
+        if (strJson == null){
+            return map;
+        }
+        Gson gson = new Gson();
+        map = gson.fromJson(strJson,new TypeToken<Map<String,String> >(){}.getType());
+        return map;
+    }
+
+
 }
